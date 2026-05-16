@@ -1,70 +1,106 @@
-# Getting Started with Create React App
+# ✦ AI Task Manager
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+AIが優先度を自動提案するタスク管理アプリです。Claude APIと連携し、タスク一覧を分析して high / medium / low の優先度と理由を自動付与します。
 
-## Available Scripts
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)
+![Claude API](https://img.shields.io/badge/Claude-Sonnet_4-D97757?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## 📸 スクリーンショット
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+![スクリーンショット](docs/screenshot.png)
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+---
 
-### `npm test`
+## 🚀 機能
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+| 機能 | 説明 |
+|------|------|
+| タスク追加 | テキスト入力 + Enter またはボタンで即追加 |
+| 完了チェック | クリックで完了／未完了をトグル |
+| 削除 | 各タスクの × ボタンで削除 |
+| **AI優先度提案** | ボタン1つで Claude API がタスクを一括分析し、優先度と理由を付与 |
+| フィルタ | すべて／未完了／完了済みで絞り込み |
 
-### `npm run build`
+---
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## 🛠 技術スタック
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- **React 18** — UIコンポーネント・ローカルstate管理
+- **Anthropic Claude API** (`claude-sonnet-4`) — タスク優先度の自然言語分析
+- **CSS-in-JS（インラインスタイル）** — 外部ライブラリなし・軽量構成
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+---
 
-### `npm run eject`
+## ⚙️ セットアップ
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### 1. リポジトリをクローン
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```bash
+git clone https://github.com/<your-username>/ai-task-manager.git
+cd ai-task-manager
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### 2. 依存パッケージをインストール
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```bash
+npx create-react-app .
+# または既存のReactプロジェクトにApp.jsxを組み込む
+npm install
+```
 
-## Learn More
+### 3. 環境変数を設定
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+プロジェクトルートに `.env` ファイルを作成し、Anthropic APIキーを設定します。
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```env
+REACT_APP_ANTHROPIC_API_KEY=your_api_key_here
+```
 
-### Code Splitting
+> APIキーは [Anthropic Console](https://console.anthropic.com/) で発行できます。
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### 4. 起動
 
-### Analyzing the Bundle Size
+```bash
+npm start
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+`http://localhost:3000` でアプリが起動します。
 
-### Making a Progressive Web App
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## 📁 ファイル構成
 
-### Advanced Configuration
+```
+ai-task-manager/
+├── src/
+│   └── App.jsx        # メインコンポーネント（全機能を1ファイルに集約）
+├── .env               # APIキー（Gitには含めない）
+├── .gitignore
+└── README.md
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+---
 
-### Deployment
+## 🔒 セキュリティについて
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+`.env` ファイルは `.gitignore` に追加し、APIキーをGitHubにコミットしないよう注意してください。
 
-### `npm run build` fails to minify
+本番運用する場合は、Next.js の Route Handlers や BFF（Backend for Frontend）を通じてAPIキーをサーバー側で管理することを推奨します。
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+---
+
+## 🗺 今後の拡張予定
+
+- [ ] Supabase によるデータ永続化・ユーザー認証
+- [ ] ドラッグ＆ドロップによるタスク並び替え
+- [ ] 締切日・タグ機能の追加
+- [ ] Next.js への移行（APIキーのサーバーサイド管理）
+
+---
+
+## 📄 ライセンス
+
+MIT
