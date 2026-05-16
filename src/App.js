@@ -1,4 +1,10 @@
 import { useState, useRef, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL,
+  process.env.REACT_APP_SUPABASE_ANON_KEY
+);
 
 const PRIORITY_CONFIG = {
   high:   { label: "高", color: "#C0392B", bg: "#FDEDEC", dot: "#E74C3C" },
@@ -32,7 +38,7 @@ function TaskCard({ task, onToggle, onDelete }) {
       opacity: task.done ? 0.55 : 1,
     }}>
       <button
-        onClick={() => onToggle(task.id)}
+        onClick={() => onToggle(task.id, task.done)}
         style={{
           marginTop: 2, width: 20, height: 20, minWidth: 20,
           borderRadius: "50%", border: `2px solid ${task.done ? "#2ECC71" : "#CCC"}`,
@@ -77,28 +83,57 @@ function TaskCard({ task, onToggle, onDelete }) {
 }
 
 export default function App() {
-  const [tasks, setTasks] = useState([
-    { id: 1, title: "GitHubにREADMEを書く", priority: "high", done: false, note: "スクリーンショットも添付する" },
-    { id: 2, title: "ポートフォリオサイトを更新する", priority: "medium", done: false, note: "" },
-    { id: 3, title: "Tailwindの公式ドキュメントを読む", priority: "low", done: true, note: "" },
-  ]);
+  const [tasks, setTasks] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [aiStatus, setAiStatus] = useState(""); // "", "analyzing", "done", "error"
-  const [filter, setFilter] = useState("all"); // all, active, done
-  const nextId = useRef(10);
+  const [fetching, setFetching] = useState(true);
+  const [aiStatus, setAiStatus] = useState("");
+  const [filter, setFilter] = useState("all");
 
-  const addTask = () => {
+  // 起動時にSupabaseからタスクを取得
+  useEffect(() => {
+    const fetchTasks = async () => {
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (!error) setTasks(data);
+      setFetching(false);
+    };
+    fetchTasks();
+  }, []);
+
+  // タスク追加
+  const addTask = async () => {
     const title = input.trim();
     if (!title) return;
-    const newTask = { id: nextId.current++, title, priority: "none", done: false, note: "" };
-    setTasks(prev => [newTask, ...prev]);
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert([{ title, priority: "none", done: false, note: "" }])
+      .select();
+    if (!error) setTasks(prev => [data[0], ...prev]);
     setInput("");
   };
 
-  const toggleTask = (id) => setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
-  const deleteTask = (id) => setTasks(prev => prev.filter(t => t.id !== id));
+  // 完了トグル
+  const toggleTask = async (id, currentDone) => {
+    const { error } = await supabase
+      .from("tasks")
+      .update({ done: !currentDone })
+      .eq("id", id);
+    if (!error) setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+  };
 
+  // タスク削除
+  const deleteTask = async (id) => {
+    const { error } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("id", id);
+    if (!error) setTasks(prev => prev.filter(t => t.id !== id));
+  };
+
+  // AI優先度分析
   const analyzeAll = async () => {
     const active = tasks.filter(t => !t.done);
     if (active.length === 0) return;
@@ -112,7 +147,7 @@ export default function App() {
 ${active.map(t => `- id:${t.id} "${t.title}"`).join("\n")}
 
 以下のJSON形式のみで回答してください。余計な説明は不要です：
-{"priorities": [{"id": <number>, "priority": "high"|"medium"|"low", "reason": "<15字以内の理由>"}]}`;
+{"priorities": [{"id": "<id>", "priority": "high"|"medium"|"low", "reason": "<15字以内の理由>"}]}`;
 
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -129,9 +164,16 @@ ${active.map(t => `- id:${t.id} "${t.title}"`).join("\n")}
       const clean = text.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean);
 
+      // Supabaseを一括更新
+      for (const p of parsed.priorities) {
+        await supabase
+          .from("tasks")
+          .update({ priority: p.priority, note: p.reason })
+          .eq("id", p.id);
+      }
+
       const map = {};
       parsed.priorities.forEach(p => { map[p.id] = { priority: p.priority, note: p.reason }; });
-
       setTasks(prev => prev.map(t => map[t.id]
         ? { ...t, priority: map[t.id].priority, note: map[t.id].note }
         : t
@@ -148,7 +190,6 @@ ${active.map(t => `- id:${t.id} "${t.title}"`).join("\n")}
   const filtered = tasks.filter(t =>
     filter === "all" ? true : filter === "active" ? !t.done : t.done
   );
-
   const activeCount = tasks.filter(t => !t.done).length;
 
   return (
@@ -161,17 +202,15 @@ ${active.map(t => `- id:${t.id} "${t.title}"`).join("\n")}
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
 
       <div style={{ maxWidth: 560, margin: "0 auto" }}>
-        {/* Header */}
         <div style={{ marginBottom: 32 }}>
           <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, color: "#1A1A1A", letterSpacing: "-0.5px" }}>
             タスクマネージャー
           </h1>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "#888" }}>
-            {activeCount}件のタスクが残っています
+            {fetching ? "読み込み中..." : `${activeCount}件のタスクが残っています`}
           </p>
         </div>
 
-        {/* Input */}
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           <input
             value={input}
@@ -202,7 +241,6 @@ ${active.map(t => `- id:${t.id} "${t.title}"`).join("\n")}
           >+</button>
         </div>
 
-        {/* AI Button */}
         <button
           onClick={analyzeAll}
           disabled={loading || activeCount === 0}
@@ -218,20 +256,16 @@ ${active.map(t => `- id:${t.id} "${t.title}"`).join("\n")}
           }}
         >
           {loading ? (
-            <>
-              <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⟳</span>
-              AIが優先度を分析中...
-            </>
+            <><span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⟳</span>AIが優先度を分析中...</>
           ) : aiStatus === "done" ? (
-            <><span>✓</span> 優先度を更新しました</>
+            <><span>✓</span>優先度を更新しました</>
           ) : aiStatus === "error" ? (
-            <><span>⚠</span> エラーが発生しました</>
+            <><span>⚠</span>エラーが発生しました</>
           ) : (
-            <><span>✦</span> AIで優先度を自動提案</>
+            <><span>✦</span>AIで優先度を自動提案</>
           )}
         </button>
 
-        {/* Filter */}
         <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
           {[["all","すべて"],["active","未完了"],["done","完了済み"]].map(([val, label]) => (
             <button
@@ -249,9 +283,13 @@ ${active.map(t => `- id:${t.id} "${t.title}"`).join("\n")}
           ))}
         </div>
 
-        {/* Task list */}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {filtered.length === 0 && (
+          {fetching && (
+            <div style={{ textAlign: "center", padding: "48px 0", color: "#BBB", fontSize: 14 }}>
+              読み込み中...
+            </div>
+          )}
+          {!fetching && filtered.length === 0 && (
             <div style={{ textAlign: "center", padding: "48px 0", color: "#BBB", fontSize: 14 }}>
               タスクがありません
             </div>
@@ -261,7 +299,6 @@ ${active.map(t => `- id:${t.id} "${t.title}"`).join("\n")}
           ))}
         </div>
 
-        {/* Legend */}
         <div style={{ marginTop: 28, padding: "12px 16px", background: "#fff", borderRadius: 10, border: "1px solid #EDEDED" }}>
           <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "#AAA", letterSpacing: "0.08em" }}>優先度の凡例</p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
