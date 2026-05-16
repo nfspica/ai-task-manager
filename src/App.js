@@ -150,9 +150,11 @@ ${active.map(t => `- id:${t.id} "${t.title}"`).join("\n")}
 {"priorities": [{"id": "<id>", "priority": "high"|"medium"|"low", "reason": "<15字以内の理由>"}]}`;
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("http://localhost:3001/api/anthropic/v1/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 1000,
